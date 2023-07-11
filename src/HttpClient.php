@@ -6,32 +6,61 @@ namespace App;
 
 class HttpClient
 {
-    private $httpResponse;
+    private $httpRequest;
+    private $cache;
 
-    public function __construct(HttpResponse $httpResponse)
+    public function __construct(HttpRequest $httpRequest, CacheInterface $cache)
     {
-        $this->httpResponse = $httpResponse;
+        $this->httpRequest = $httpRequest;
+        $this->cache = $cache;
     }
 
     public function get(string $url, array $parameters = null): array
     {
-        return $this->httpResponse->call('GET', $url, $parameters);
+        $cacheKey = $this->generateCacheKey('GET', $url, $parameters);
+
+        if ($this->cache->has($cacheKey)) {
+            return $this->cache->get($cacheKey);
+        }
+
+        $response = $this->httpRequest->call('GET', $url, $parameters);
+
+        $this->cache->set($cacheKey, $response);
+
+        return $response;
     }
 
-    public function call(string $method, string $url, array $parameters = null, array $data = null): array
+    public function post(string $url, array $parameters = null, array $data = null): array
     {
-        $opts = [
-            'http' => [
-                'method'  => $method,
-                'header'  => 'Content-type: application/json',
-                'content' => $data ? json_encode($data) : null
-            ]
-        ];
+        return $this->httpRequest->call('POST', $url, $parameters, $data);
+    }
 
-        $url .= ($parameters ? '?' . http_build_query($parameters) : '');
-        
-        $response = file_get_contents($url, false, stream_context_create($opts));
-        
-        return json_decode($response, true);
+    public function put(string $url, array $parameters = null, array $data = null): array
+    {
+        $cacheKey = $this->generateCacheKey('PUT', $url, $parameters);
+
+        $this->cache->clear($cacheKey);
+
+        return $this->httpRequest->call('PUT', $url, $parameters, $data);
+    }
+
+    public function delete(string $url, array $parameters = null): array
+    {
+        $cacheKey = $this->generateCacheKey('DELETE', $url, $parameters);
+
+        $this->cache->clear($cacheKey);
+
+        return $this->httpRequest->call('DELETE', $url, $parameters);
+    }
+
+    private function generateCacheKey(string $method, string $url, array $parameters = null): string
+    {
+        $key = $method . '-' . $url;
+
+        if (!empty($parameters)) {
+            $key .= '?' . http_build_query($parameters);
+        }
+
+        return $key;
     }
 }

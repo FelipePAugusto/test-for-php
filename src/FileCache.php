@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App;
 
-class FileCache implements CacheInterface
-{
+class FileCache implements CacheInterface {
     private $cachePath;
 
-    public function __construct(string $cachePath)
-    {
+    public function __construct(string $cachePath) {
         $this->cachePath = $cachePath;
     }
 
